@@ -48,9 +48,12 @@ function parseArgs() {
   }
 }
 
-function count(): { lines: number; words: number; chars: number } {
-  const readFrom = positionalArgs[0] ? positionalArgs[0] : 0;
-  const content = fs.readFileSync(readFrom, "utf-8");
+function count(file: fs.PathLike | number): {
+  lines: number;
+  words: number;
+  chars: number;
+} {
+  const content = fs.readFileSync(file, "utf-8");
 
   let lines = 0;
   let words = 0;
@@ -95,19 +98,34 @@ try {
     options["-c"] = true;
   }
 
-  const countObj = count();
-  const result: number[] = [];
-  if (options["-l"]) {
-    result.push(countObj.lines);
-  }
-  if (options["-w"]) {
-    result.push(countObj.words);
-  }
-  if (options["-c"]) {
-    result.push(countObj.chars);
-  }
+  // If positionalArgs is empty, read from stdin (0)
+  // If positionalArgs has values, use those file paths
+  const readFrom = positionalArgs.length > 0 ? positionalArgs : [0];
 
-  console.log(result.join(" ") + (positionalArgs[0] ? ` ${positionalArgs[0]}` : ''))
+  let total_lines = 0;
+  let total_words = 0;
+  let total_chars = 0;
+  for (let inputFile of readFrom) {
+    const countObj = count(inputFile);
+    const result: number[] = [];
+    if (options["-l"]) {
+      result.push(countObj.lines);
+      total_lines += countObj.lines;
+    }
+    if (options["-w"]) {
+      result.push(countObj.words);
+      total_words += countObj.words;
+    }
+    if (options["-c"]) {
+      result.push(countObj.chars);
+      total_chars += countObj.chars;
+    }
+
+    console.log("  " + result.join(" ") + " " + inputFile);
+  }
+  console.log(
+    "  " + total_lines + " " + total_words + " " + total_chars + " " + "total"
+  );
 } catch (error) {
   console.error(error);
   process.exit(1);
