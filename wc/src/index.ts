@@ -1,60 +1,92 @@
 #!/usr/bin/env node
 
-interface OptionsDict {
-  [option: string]: string | boolean;
-}
+import * as fs from "fs";
 
-let options: OptionsDict = {};
+const OPTION_MAP = {
+  "--lines": "-l",
+  "--words": "-w",
+  "--bytes": "-c",
+} as const;
+
+type LongFormOptions = keyof typeof OPTION_MAP;
+type ShortFormOptions = (typeof OPTION_MAP)[LongFormOptions];
+type Flags = {
+  [K in ShortFormOptions]?: boolean;
+};
+
+const validShortOptions = new Set(Object.values(OPTION_MAP));
+
+let options: Flags = {};
 let positionalArgs: string[] = [];
 
 function parseArgs() {
   let args = process.argv;
   for (let i = 2; i < args.length; i++) {
     let token: string = args[i];
-    if (token.startsWith("-")) {
-      if (token.includes("=")) {
-        // Options: --c=value
-        let [option, value] = token.split("=");
-        options[option] = value;
-      } else {
-        // Flags: --c
-        options[token] = true;
+
+    // Long-Form Options.
+    if (token.startsWith("--")) {
+      if (!(token in OPTION_MAP)) {
+        throw new Error(`Invalid option: ${token}`);
       }
+      const shortForm = OPTION_MAP[token as LongFormOptions];
+      options[shortForm] = true;
+      // Short-Form Options.
+    } else if (token.startsWith("-")) {
+      const compinedArgs: string[] = token.slice(1).split("");
+      for (const flag of compinedArgs) {
+        let shortForm = `-${flag}`;
+        if (!validShortOptions.has(shortForm as ShortFormOptions)) {
+          throw new Error(`Invalid option: -${flag}`);
+        }
+        options[shortForm as ShortFormOptions] = true;
+      }
+      // Positional Arguments
     } else {
-      // Positional Arguments: test.txt
       positionalArgs.push(token);
     }
   }
 }
 
-function validateArgs() {
-  // Check Mutually Exclusive Group: -c, -l, -w
-  let mutuallyExclusiveOptions = new Set(["-c", "-l", "-w"]);
-  let optionCount = 0;
-  for (const key of Object.keys(options)) {
-    if (mutuallyExclusiveOptions.has(key)) {
-      optionCount++;
+function count(): { lines: number; words: number; chars: number } {
+  const readFrom = positionalArgs[0] ? positionalArgs[0] : 0;
+  const content = fs.readFileSync(readFrom, "utf-8");
+
+  let lines = 0;
+  let words = 0;
+  let chars = 0;
+  let inWord: boolean = false;
+
+  for (let char of content) {
+    chars++;
+
+    if (char === " " || char === "\t") {
+      if (inWord) {
+        words++;
+        inWord = false;
+      }
+    } else if (char === "\n") {
+      lines++;
+      if (inWord) {
+        words++;
+        inWord = false;
+      }
+    } else {
+      inWord = true;
     }
   }
-  if (optionCount > 1) {
-    throw new Error(
-      "Options -c, -l, and -w are mutually exclusive. Please use only one."
-    );
+  if (inWord) {
+    words++;
   }
-
-  // Check if no file passed.
-  // TODO: Read from STD input
-  if (positionalArgs.length === 0) {
-    throw new Error("No input file provided");
-  }
+  return {
+    lines: lines,
+    words: words,
+    chars: chars,
+  };
 }
-
-function main() {}
 
 try {
   parseArgs();
-
-  validateArgs();
 
   // default option '-lwc'
   if (Object.keys(options).length === 0) {
@@ -63,10 +95,19 @@ try {
     options["-c"] = true;
   }
 
-  main();
+  const countObj = count();
+  const result: number[] = [];
+  if (options["-l"]) {
+    result.push(countObj.lines);
+  }
+  if (options["-w"]) {
+    result.push(countObj.words);
+  }
+  if (options["-c"]) {
+    result.push(countObj.chars);
+  }
 
-  console.log(options);
-  console.log(positionalArgs);
+  console.log(result.join(" ") + (positionalArgs[0] ? ` ${positionalArgs[0]}` : ''))
 } catch (error) {
   console.error(error);
   process.exit(1);
