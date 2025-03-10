@@ -27,4 +27,3 @@ npm run build
 ## Process
 
 - `curl -L "https://www.dropbox.com/scl/fi/w227qldw9qnpgaw8a8u0k/challenge-huffman.zip?dl=1&e=1&file_subpath=%2Ftest.txt&rlkey=biu7wnugjy9nziev8ejzogsm9&st=jxmfe3fs" -o challenge-huffman.zip` -L flag: Tells curl to follow redirects, which is common with Dropbox links.
-- 
