@@ -1,4 +1,6 @@
-#!/usr/bin/env node
+// TODO: Uncomment this when testing the cli #!/usr/bin/env node
+// The reason why i comment it s due to GH will detect this file as JS file not TS.
+// And I don't want to :(
 
 import * as fs from "fs";
 
